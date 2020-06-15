@@ -23,3 +23,7 @@ target_include_directories(objects_benchmark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/
 add_executable(iiwa_benchmark iiwa_benchmark.cpp)
 target_link_libraries(iiwa_benchmark PUBLIC raisim::raisim dart dart-utils-urdf)
 target_include_directories(iiwa_benchmark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+add_executable(pexod_benchmark pexod_benchmark.cpp)
+target_link_libraries(pexod_benchmark PUBLIC raisim::raisim dart dart-utils-urdf)
+target_include_directories(pexod_benchmark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
