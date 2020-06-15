@@ -1,5 +1,4 @@
 // DART related
-#include <dart/collision/bullet/BulletCollisionDetector.hpp>
 #include <dart/config.hpp>
 #include <dart/constraint/ConstraintSolver.hpp>
 #include <dart/dynamics/BoxShape.hpp>
@@ -28,7 +27,7 @@ dart::dynamics::SkeletonPtr dart_create_box(const Eigen::Vector3d& dims, double 
 
     // Give the body a shape
     auto box = std::make_shared<dart::dynamics::BoxShape>(dims);
-    auto box_node = body->createShapeNodeWith<dart::dynamics::CollisionAspect, dart::dynamics::DynamicsAspect>(box);
+    body->createShapeNodeWith<dart::dynamics::CollisionAspect, dart::dynamics::DynamicsAspect>(box);
     // Set up inertia
     dart::dynamics::Inertia inertia;
     inertia.setMass(mass);
@@ -49,7 +48,7 @@ dart::dynamics::SkeletonPtr dart_create_ellipsoid(const Eigen::Vector3d& dims, d
 
     // Give the body a shape
     auto ellipsoid = std::make_shared<dart::dynamics::EllipsoidShape>(dims);
-    auto ellipsoid_node = body->createShapeNodeWith<dart::dynamics::CollisionAspect, dart::dynamics::DynamicsAspect>(ellipsoid);
+    body->createShapeNodeWith<dart::dynamics::CollisionAspect, dart::dynamics::DynamicsAspect>(ellipsoid);
     // Set up inertia
     dart::dynamics::Inertia inertia;
     inertia.setMass(mass);
@@ -68,7 +67,7 @@ dart::dynamics::SkeletonPtr dart_create_floor(double floor_width, double floor_h
     dart::dynamics::BodyNodePtr body = floor_skel->createJointAndBodyNodePair<dart::dynamics::WeldJoint>(nullptr).second;
     // Give the body a shape
     auto box = std::make_shared<dart::dynamics::BoxShape>(Eigen::Vector3d(floor_width, floor_width, floor_height));
-    auto box_node = body->createShapeNodeWith<dart::dynamics::CollisionAspect, dart::dynamics::DynamicsAspect>(box);
+    body->createShapeNodeWith<dart::dynamics::CollisionAspect, dart::dynamics::DynamicsAspect>(box);
     // Put the body into position
     Eigen::Isometry3d tf(Eigen::Isometry3d::Identity());
     // tf.translation() = Eigen::Vector3d(x, y, -floor_height / 2.0);
@@ -158,8 +157,7 @@ int main()
             // set gravity
             world->setGravity(Eigen::Vector3d(0., 0., -9.81));
 
-            // change collision detector to Bullet (produces less contact points, closer to the collision detector of RaiSim)
-            world->getConstraintSolver()->setCollisionDetector(dart::collision::BulletCollisionDetector::create());
+            // Bullet or DART collision detectors crash or allow big penetrations
 
             // create and add floor
             auto floor_skel = dart_create_floor(100., 0.1, "floor");

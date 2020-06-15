@@ -135,8 +135,7 @@ int main()
             dart::dynamics::BodyNodePtr body = floor_skel->createJointAndBodyNodePair<dart::dynamics::WeldJoint>(nullptr).second;
             // Give the body a shape
             auto box = std::make_shared<dart::dynamics::BoxShape>(Eigen::Vector3d(floor_width, floor_width, floor_height));
-            auto box_node = body->createShapeNodeWith<dart::dynamics::VisualAspect, dart::dynamics::CollisionAspect, dart::dynamics::DynamicsAspect>(box);
-            box_node->getVisualAspect()->setColor(dart::Color::Gray());
+            body->createShapeNodeWith<dart::dynamics::CollisionAspect, dart::dynamics::DynamicsAspect>(box);
             // Put the body into position
             Eigen::Isometry3d tf(Eigen::Isometry3d::Identity());
             // tf.translation() = Eigen::Vector3d(x, y, -floor_height / 2.0);
