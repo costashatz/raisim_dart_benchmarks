@@ -14,6 +14,9 @@
 #include <chrono>
 #include <iostream>
 
+#define MAKE_STR(x) _MAKE_STR(x)
+#define _MAKE_STR(x) #x
+
 int main()
 {
     ///// Generic params
@@ -23,7 +26,7 @@ int main()
     double Kp = 1.;
     double Kd = 0.1;
 
-    std::string model_file = "/home/kchatzil/Workspaces/git/raisim/benchmarks/robots/pexod.urdf";
+    std::string model_file = std::string(MAKE_STR(EXAMPLE_ROBOT_RESOURCE_DIR)) + "/pexod.urdf";
 
     ///// Benchmark-related
     double raisim_time = 0.;

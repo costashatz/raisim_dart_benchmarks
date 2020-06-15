@@ -16,6 +16,9 @@
 #include <chrono>
 #include <iostream>
 
+#define MAKE_STR(x) _MAKE_STR(x)
+#define _MAKE_STR(x) #x
+
 dart::dynamics::SkeletonPtr dart_create_box(const Eigen::Vector3d& dims, double mass, const std::string& box_name)
 {
     dart::dynamics::SkeletonPtr box_skel = dart::dynamics::Skeleton::create(box_name);
