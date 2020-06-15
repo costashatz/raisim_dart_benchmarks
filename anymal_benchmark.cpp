@@ -1,14 +1,7 @@
 // DART related
 #include <dart/config.hpp>
-#include <dart/dynamics/BoxShape.hpp>
 #include <dart/dynamics/DegreeOfFreedom.hpp>
-#include <dart/dynamics/EllipsoidShape.hpp>
-#include <dart/dynamics/FreeJoint.hpp>
-#include <dart/dynamics/MeshShape.hpp>
-#include <dart/dynamics/WeldJoint.hpp>
 #include <dart/simulation/World.hpp>
-#include <dart/utils/SkelParser.hpp>
-#include <dart/utils/sdf/SdfParser.hpp>
 #include <dart/utils/urdf/urdf.hpp>
 
 // RaiSim related

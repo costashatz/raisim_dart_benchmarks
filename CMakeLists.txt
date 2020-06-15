@@ -15,3 +15,7 @@ target_include_directories(anymal_benchmark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/i
 add_executable(anymal_contacts_benchmark anymal_contacts_benchmark.cpp)
 target_link_libraries(anymal_contacts_benchmark PUBLIC raisim::raisim dart dart-utils-urdf dart-collision-bullet)
 target_include_directories(anymal_contacts_benchmark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+add_executable(objects_benchmark objects_benchmark.cpp)
+target_link_libraries(objects_benchmark PUBLIC raisim::raisim dart dart-utils-urdf dart-collision-bullet)
+target_include_directories(objects_benchmark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
