@@ -5,7 +5,7 @@ This repo contains a few benchmarks that compare [RaiSim](https://github.com/leg
 
 ## Benchmarks
 
-All simulations are run for **10 seconds of simulated time** with an integration time-step of **0.001 seconds**. We replicated each experiment **10 times** on a laptop CPU.
+All simulations are ran for **10 seconds of simulated time** with an integration time-step of **0.001 seconds**. We replicated each experiment **10 times** on a laptop CPU.
 
 ### Quick Analysis
 
