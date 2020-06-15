@@ -23,7 +23,7 @@ You can find this benchmark in `anymal_benchmark.cpp` file. The simulation consi
 
 **DART average running time for 10s of simulation:** 0.215082s (*real-time factor:* 46.4938)
 
-RaiSim is **5.30917** faster than DART.
+RaiSim is **5.30917** times faster than DART.
 
 #### Floating-base Simulation
 
@@ -35,7 +35,7 @@ You can find this benchmark in `anymal_contacts_benchmark.cpp` file. The simulat
 
 **DART average running time for 10s of simulation:** 3.55465s (*real-time factor:* 2.81322)
 
-RaiSim is **8.10225** faster than DART.
+RaiSim is **8.10225** times faster than DART.
 
 ### KUKA IIWA
 
@@ -47,7 +47,7 @@ You can find this benchmark in `iiwa_benchmark.cpp` file. The simulation consist
 
 **DART average running time for 10s of simulation:** 0.122529s (*real-time factor:* 81.6136)
 
-RaiSim is **5.15623** faster than DART.
+RaiSim is **5.15623** times faster than DART.
 
 ### Six-legged Robot
 
@@ -59,7 +59,7 @@ You can find this benchmark in `pexod_benchmark.cpp` file. The simulation consis
 
 **DART average running time for 10s of simulation:** 9.80957s (*real-time factor:* 1.01941)
 
-RaiSim is **13.6821** faster than DART.
+RaiSim is **13.6821** times faster than DART.
 
 ### Simple Objects
 
@@ -71,7 +71,7 @@ You can find this benchmark in `objects_benchmark.cpp` file. The simulation cons
 
 **DART average running time for 10s of simulation:** 37.7686s (*real-time factor:* 0.26477)
 
-RaiSim is **30.9851** faster than DART.
+RaiSim is **30.9851** times faster than DART.
 
 ## Compile and Run the Benchmarks
 
