@@ -1,5 +1,7 @@
 // DART related
+#include <dart/collision/bullet/BulletCollisionDetector.hpp>
 #include <dart/config.hpp>
+#include <dart/constraint/ConstraintSolver.hpp>
 #include <dart/dynamics/BoxShape.hpp>
 #include <dart/dynamics/DegreeOfFreedom.hpp>
 #include <dart/dynamics/EllipsoidShape.hpp>
@@ -24,8 +26,8 @@ int main()
     double sim_time = 10.;
     double dt = 0.001;
 
-    double Kp = 300.;
-    double Kd = 50.;
+    double Kp = 400.;
+    double Kd = 1.;
 
     std::string model_file = "/home/kchatzil/Workspaces/git/raisim/benchmarks/robots/anymal.urdf";
 
@@ -34,6 +36,8 @@ int main()
     double dart_time = 0.;
 
     size_t repeats = 10;
+
+    size_t robot_grid_size = 2; // 2x2 robots by default
 
     //// RaiSim
     {
@@ -44,33 +48,49 @@ int main()
             // set time step
             world.setTimeStep(dt);
 
+            // set gravity
+            world.setGravity({0., 0., -9.81});
+
             // create raisim objects
-            auto anymal = world.addArticulatedSystem(model_file);
             auto ground = world.addGround();
             ground->setName("checkerboard");
 
-            Eigen::VectorXd target_pos(19);
-            target_pos << 0, 0, 0.54, 1.0, 0.0, 0.0, 0.0, 0.03, 0.4, -0.8, -0.03, 0.4, -0.8, 0.03, -0.4, 0.8, -0.03, -0.4, 0.8;
-            Eigen::VectorXd target_vel = Eigen::VectorXd::Zero(18);
+            std::vector<raisim::ArticulatedSystem*> anymals;
+            std::vector<Eigen::VectorXd> target_positions;
+            for (size_t r = 0; r < robot_grid_size; r++) {
+                for (size_t c = 0; c < robot_grid_size; c++) {
+                    auto anymal = world.addArticulatedSystem(model_file);
 
-            // set anymal properties
-            anymal->setGeneralizedCoordinate(target_pos);
-            anymal->setGeneralizedForce(Eigen::VectorXd::Zero(anymal->getDOF()));
-            anymal->setControlMode(raisim::ControlMode::FORCE_AND_TORQUE);
-            anymal->setName("anymal");
+                    Eigen::VectorXd target_pos(19);
+                    target_pos << r * 2., c * 2., 0.54, 1.0, 0.0, 0.0, 0.0, 0.03, 0.4, -0.8, -0.03, 0.4, -0.8, 0.03, -0.4, 0.8, -0.03, -0.4, 0.8;
+
+                    // set anymal properties
+                    anymal->setGeneralizedCoordinate(target_pos);
+                    anymal->setGeneralizedForce(Eigen::VectorXd::Zero(anymal->getDOF()));
+                    anymal->setControlMode(raisim::ControlMode::FORCE_AND_TORQUE);
+                    anymal->setName("anymal");
+
+                    anymals.push_back(anymal);
+                    target_positions.push_back(target_pos);
+                }
+            }
 
             // Main control loop
             size_t loopN = sim_time / dt;
             auto start = std::chrono::steady_clock::now();
             for (size_t i = 0; i < loopN; i++) {
-                Eigen::VectorXd pos = anymal->getGeneralizedCoordinate().e().tail(12);
-                Eigen::VectorXd vel = anymal->getGeneralizedVelocity().e().tail(12);
+                for (size_t r = 0; r < anymals.size(); r++) {
+                    auto anymal = anymals[r];
 
-                Eigen::VectorXd command = Kp * (target_pos.tail(12) - pos) - Kd * vel;
-                Eigen::VectorXd cmd(command.size() + 6);
-                cmd.setZero();
-                cmd.tail(12) = command;
-                anymal->setGeneralizedForce(cmd);
+                    Eigen::VectorXd pos = anymal->getGeneralizedCoordinate().e().tail(12);
+                    Eigen::VectorXd vel = anymal->getGeneralizedVelocity().e().tail(12);
+
+                    Eigen::VectorXd command = Kp * (target_positions[r].tail(12) - pos) - Kd * vel;
+                    Eigen::VectorXd cmd(command.size() + 6);
+                    cmd.setZero();
+                    cmd.tail(12) = command;
+                    anymal->setGeneralizedForce(cmd);
+                }
                 world.integrate();
             }
             auto end = std::chrono::steady_clock::now();
@@ -78,7 +98,8 @@ int main()
             raisim_time += elapsed_seconds.count();
         }
         raisim_time /= repeats;
-        std::cout << "RaiSim time: " << raisim_time << "s\n";
+        std::cout << "RaiSim time: " << raisim_time << "s" << std::endl;
+        std::cout << "   real-time factor: " << (sim_time / raisim_time) << std::endl;
     }
 
     //// DART
@@ -90,24 +111,27 @@ int main()
             // set time step
             world->setTimeStep(dt);
 
+            // set gravity
+            world->setGravity(Eigen::Vector3d(0., 0., -9.81));
+
+            // change collision detector to Bullet (produces less contact points, closer to the collision detector of RaiSim)
+            world->getConstraintSolver()->setCollisionDetector(dart::collision::BulletCollisionDetector::create());
+
             // load URDF
             dart::utils::DartLoader loader;
-            auto anymal = loader.parseSkeleton(model_file);
+            auto root_anymal = loader.parseSkeleton(model_file);
 
-            // Enforce limits and add anymal
-            for (size_t i = 0; i < anymal->getNumDofs(); ++i) {
+            // Enforce limits
+            for (size_t i = 0; i < root_anymal->getNumDofs(); ++i) {
 #if DART_VERSION_AT_LEAST(6, 10, 0)
-                anymal->getDof(i)->getJoint()->setLimitEnforcement(true);
+                root_anymal->getDof(i)->getJoint()->setLimitEnforcement(true);
 #else
-                anymal->getDof(i)->getJoint()->setPositionLimitEnforced(true);
+                root_anymal->getDof(i)->getJoint()->setPositionLimitEnforced(true);
 #endif
             }
 
-            anymal->setPosition(5, 0.54);
-            world->addSkeleton(anymal);
-
             // Create and add floor
-            double floor_width = 10.0;
+            double floor_width = 100.0;
             double floor_height = 0.1;
             Eigen::Vector6d pose = Eigen::Vector6d::Zero();
 
@@ -136,19 +160,52 @@ int main()
 
             // Get indices and set init position
             for (size_t i = 0; i < joint_names.size(); i++) {
-                indices.push_back(anymal->getJoint(joint_names[i])->getDof(0)->getIndexInSkeleton());
-                auto dof = anymal->getDof(indices[i]);
-                dof->setPosition(target_pos(i));
+                indices.push_back(root_anymal->getJoint(joint_names[i])->getDof(0)->getIndexInSkeleton());
+            }
+
+            // add anymals
+            std::vector<dart::dynamics::SkeletonPtr> anymals;
+            std::vector<Eigen::VectorXd> target_positions;
+            size_t id = 0;
+            for (size_t r = 0; r < robot_grid_size; r++) {
+                for (size_t c = 0; c < robot_grid_size; c++) {
+#if DART_VERSION_AT_LEAST(6, 7, 2)
+                    auto anymal = root_anymal->cloneSkeleton();
+#else
+                    auto anymal = root_anymal->clone();
+#endif
+
+                    anymal->setPosition(3, r * 2.);
+                    anymal->setPosition(4, c * 2.);
+                    anymal->setPosition(5, 0.54);
+                    anymal->setName("anymal_" + std::to_string(id++));
+
+                    for (size_t i = 0; i < joint_names.size(); i++) {
+                        auto dof = anymal->getDof(indices[i]);
+                        dof->setPosition(target_pos(i));
+                    }
+
+                    anymals.push_back(anymal);
+                    target_positions.push_back(target_pos);
+
+                    // Add animal to the world
+                    world->addSkeleton(anymal);
+                }
             }
 
             size_t loopN = sim_time / dt;
             auto start = std::chrono::steady_clock::now();
             for (size_t i = 0; i < loopN; i++) {
-                Eigen::VectorXd positions = anymal->getPositions();
-                Eigen::VectorXd velocities = anymal->getVelocities();
-                for (size_t j = 0; j < 12; j++) {
-                    auto dof = anymal->getDof(indices[j]); //anymal->getJoint(joint_names[j])->getDof(0);
-                    dof->setCommand(Kp * (target_pos(j) - positions[indices[j]]) - Kd * velocities[indices[j]]);
+                for (size_t r = 0; r < anymals.size(); r++) {
+                    auto anymal = anymals[r];
+
+                    Eigen::VectorXd positions = anymal->getPositions();
+                    Eigen::VectorXd velocities = anymal->getVelocities();
+
+                    for (size_t j = 0; j < 12; j++) {
+                        auto dof = anymal->getDof(indices[j]);
+                        dof->setCommand(Kp * (target_pos(j) - positions[indices[j]]) - Kd * velocities[indices[j]]);
+                    }
                 }
                 world->step();
             }
@@ -157,7 +214,8 @@ int main()
             dart_time += elapsed_seconds.count();
         }
         dart_time /= repeats;
-        std::cout << "DART time: " << dart_time << "s\n";
+        std::cout << "DART time: " << dart_time << "s" << std::endl;
+        std::cout << "   real-time factor: " << (sim_time / dart_time) << std::endl;
     }
 
     std::cout << "Ratio (DART/RaiSim): " << (dart_time / raisim_time) << std::endl;

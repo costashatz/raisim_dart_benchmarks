@@ -24,8 +24,8 @@ int main()
     double sim_time = 10.;
     double dt = 0.001;
 
-    double Kp = 300.;
-    double Kd = 50.;
+    double Kp = 400.;
+    double Kd = 1.;
 
     std::string model_file = "/home/kchatzil/Workspaces/git/raisim/benchmarks/robots/anymal_fixed.urdf";
 
@@ -44,12 +44,14 @@ int main()
             // set time step
             world.setTimeStep(dt);
 
+            // set gravity
+            world.setGravity({0., 0., -9.81});
+
             // create raisim objects
             auto anymal = world.addArticulatedSystem(model_file);
 
             Eigen::VectorXd target_pos(19);
             target_pos << 0, 0, 0, 1.0, 0.0, 0.0, 0.0, 0.03, 0.4, -0.8, -0.03, 0.4, -0.8, 0.03, -0.4, 0.8, -0.03, -0.4, 0.8;
-            Eigen::VectorXd target_vel = Eigen::VectorXd::Zero(18);
 
             // set anymal properties
             anymal->setGeneralizedCoordinate(target_pos);
@@ -76,7 +78,8 @@ int main()
             raisim_time += elapsed_seconds.count();
         }
         raisim_time /= repeats;
-        std::cout << "RaiSim time: " << raisim_time << "s\n";
+        std::cout << "RaiSim time: " << raisim_time << "s" << std::endl;
+        std::cout << "   real-time factor: " << (sim_time / raisim_time) << std::endl;
     }
 
     //// DART
@@ -87,6 +90,9 @@ int main()
 
             // set time step
             world->setTimeStep(dt);
+
+            // set gravity
+            world->setGravity(Eigen::Vector3d(0., 0., -9.81));
 
             // load URDF
             dart::utils::DartLoader loader;
@@ -135,7 +141,8 @@ int main()
             dart_time += elapsed_seconds.count();
         }
         dart_time /= repeats;
-        std::cout << "DART time: " << dart_time << "s\n";
+        std::cout << "DART time: " << dart_time << "s" << std::endl;
+        std::cout << "   real-time factor: " << (sim_time / dart_time) << std::endl;
     }
 
     std::cout << "Ratio (DART/RaiSim): " << (dart_time / raisim_time) << std::endl;
