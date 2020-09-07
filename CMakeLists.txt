@@ -3,6 +3,7 @@ project(dart_raisim_benchmarks)
 
 find_package(DART 6.8.0 CONFIG REQUIRED COMPONENTS utils-urdf collision-bullet)
 find_package(raisim CONFIG REQUIRED)
+find_package(pinocchio REQUIRED)
 
 find_package(Eigen3 REQUIRED HINTS ${Eigen3_HINT})
 
@@ -11,7 +12,7 @@ include_directories (${EIGEN3_INCLUDE_DIRS})
 set(resource_directory ${CMAKE_CURRENT_SOURCE_DIR}/robots/)
 
 add_executable(anymal_benchmark anymal_benchmark.cpp)
-target_link_libraries(anymal_benchmark PUBLIC raisim::raisim dart dart-utils-urdf)
+target_link_libraries(anymal_benchmark PUBLIC raisim::raisim dart dart-utils-urdf pinocchio::pinocchio)
 target_include_directories(anymal_benchmark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(anymal_benchmark PRIVATE "-DEXAMPLE_ROBOT_RESOURCE_DIR=${resource_directory}")
 
@@ -25,7 +26,7 @@ target_link_libraries(objects_benchmark PUBLIC raisim::raisim dart dart-utils-ur
 target_include_directories(objects_benchmark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_executable(iiwa_benchmark iiwa_benchmark.cpp)
-target_link_libraries(iiwa_benchmark PUBLIC raisim::raisim dart dart-utils-urdf)
+target_link_libraries(iiwa_benchmark PUBLIC raisim::raisim dart dart-utils-urdf pinocchio::pinocchio)
 target_include_directories(iiwa_benchmark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(iiwa_benchmark PRIVATE "-DEXAMPLE_ROBOT_RESOURCE_DIR=${resource_directory}")
 

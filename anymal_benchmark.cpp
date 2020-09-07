@@ -7,6 +7,14 @@
 // RaiSim related
 #include <raisim/World.hpp>
 
+// pinocchio related
+#include <pinocchio/algorithm/aba.hpp>
+#include <pinocchio/algorithm/compute-all-terms.hpp>
+#include <pinocchio/algorithm/crba.hpp>
+#include <pinocchio/algorithm/joint-configuration.hpp>
+#include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/parsers/urdf.hpp>
+
 // std
 #include <chrono>
 #include <iostream>
@@ -28,6 +36,7 @@ int main()
     ///// Benchmark-related
     double raisim_time = 0.;
     double dart_time = 0.;
+    double pinocchio_time = 0.;
 
     size_t repeats = 10;
 
@@ -46,8 +55,10 @@ int main()
             // create raisim objects
             auto anymal = world.addArticulatedSystem(model_file);
 
-            Eigen::VectorXd target_pos(19);
-            target_pos << 0, 0, 0, 1.0, 0.0, 0.0, 0.0, 0.03, 0.4, -0.8, -0.03, 0.4, -0.8, 0.03, -0.4, 0.8, -0.03, -0.4, 0.8;
+            // Eigen::VectorXd target_pos(19);
+            // target_pos << 0, 0, 0, 1.0, 0.0, 0.0, 0.0, 0.03, 0.4, -0.8, -0.03, 0.4, -0.8, 0.03, -0.4, 0.8, -0.03, -0.4, 0.8;
+            Eigen::VectorXd target_pos(12);
+            target_pos << 0.03, 0.4, -0.8, -0.03, 0.4, -0.8, 0.03, -0.4, 0.8, -0.03, -0.4, 0.8;
 
             // set anymal properties
             anymal->setGeneralizedCoordinate(target_pos);
@@ -63,19 +74,100 @@ int main()
                 Eigen::VectorXd vel = anymal->getGeneralizedVelocity().e().tail(12);
 
                 Eigen::VectorXd command = Kp * (target_pos.tail(12) - pos) - Kd * vel;
-                Eigen::VectorXd cmd(command.size() + 6);
-                cmd.setZero();
-                cmd.tail(12) = command;
-                anymal->setGeneralizedForce(cmd);
+                // Eigen::VectorXd cmd(command.size() + 6);
+                // cmd.setZero();
+                // cmd.tail(12) = command;
+                anymal->setGeneralizedForce(command);
                 world.integrate();
             }
             auto end = std::chrono::steady_clock::now();
             std::chrono::duration<double> elapsed_seconds = end - start;
             raisim_time += elapsed_seconds.count();
+
+            // if (repeat == 0) {
+            //     std::cout << anymal->getGeneralizedCoordinate().e().tail(12).transpose() << std::endl;
+            //     std::cout << target_pos.tail(12).transpose() << std::endl;
+            // }
         }
         raisim_time /= repeats;
         std::cout << "RaiSim time: " << raisim_time << "s" << std::endl;
         std::cout << "   real-time factor: " << (sim_time / raisim_time) << std::endl;
+    }
+
+    //// pinocchio
+    {
+        // Load the urdf model
+        pinocchio::Model model;
+        pinocchio::urdf::buildModel(model_file, model);
+
+        model.gravity.linear(Eigen::Vector3d(0., 0., -9.81));
+
+        // Main control loop
+        Eigen::VectorXd target_pos(12);
+        target_pos << 0.03, 0.4, -0.8, -0.03, 0.4, -0.8, 0.03, -0.4, 0.8, -0.03, -0.4, 0.8;
+        std::vector<std::string> joint_names = {"LF_HAA", "LF_HFE", "LF_KFE", "RF_HAA", "RF_HFE", "RF_KFE", "LH_HAA", "LH_HFE", "LH_KFE", "RH_HAA", "RH_HFE", "RH_KFE"};
+        std::vector<int> indices, reverse_indices(joint_names.size(), 0);
+
+        auto find_joint_idx = [&](const std::string& joint_name) {
+            for (pinocchio::JointIndex joint_id = 0; joint_id < (pinocchio::JointIndex)model.njoints; ++joint_id) {
+                if (model.names[joint_id] == joint_name)
+                    return joint_id;
+            }
+            return (pinocchio::JointIndex)-1;
+        };
+
+        // Get indices and set init position
+        for (size_t i = 0; i < joint_names.size(); i++) {
+            indices.push_back(find_joint_idx(joint_names[i]));
+            reverse_indices[indices.back()] = i;
+        }
+
+        for (size_t repeat = 0; repeat < repeats; repeat++) {
+            // Create data required by the algorithms
+            pinocchio::Data data(model);
+
+            Eigen::VectorXd q(12);
+            for (size_t i = 0; i < indices.size(); i++) {
+                q[indices[i]] = target_pos(i);
+            }
+
+            Eigen::VectorXd v = Eigen::VectorXd::Zero(q.size());
+
+            // Main control loop
+            size_t loopN = sim_time / dt;
+            auto start = std::chrono::steady_clock::now();
+            for (size_t i = 0; i < loopN; i++) {
+                Eigen::VectorXd diff = q;
+                for (int j = 0; j < diff.size(); j++)
+                    diff(j) = target_pos(reverse_indices[j]) - q(j);
+                Eigen::VectorXd command = Kp * diff - Kd * v;
+
+                // pinocchio::crba(model, data, q);
+                // pinocchio::nonLinearEffects(model, data, q, v);
+                // pinocchio::computeMinverse(model, data, q);
+                // pinocchio::computeAllTerms(model, data, q, v);
+                // pinocchio::computeMinverse(model, data, q);
+
+                pinocchio::aba(model, data, q, v, command);
+
+                v += data.ddq * dt;
+                q += v * dt;
+            }
+            auto end = std::chrono::steady_clock::now();
+            std::chrono::duration<double> elapsed_seconds = end - start;
+            pinocchio_time += elapsed_seconds.count();
+
+            // if (repeat == 0) {
+            //     std::cout << std::endl;
+            //     for (size_t i = 0; i < indices.size(); i++)
+            //         std::cout << q[indices[i]] << " ";
+            //     std::cout << std::endl;
+            //     std::cout << target_pos.transpose() << std::endl;
+            // }
+        }
+        pinocchio_time /= repeats;
+        std::cout << "pinocchio_time time: " << pinocchio_time << "s" << std::endl;
+        std::cout << "   real-time factor: " << (sim_time / pinocchio_time) << std::endl;
     }
 
     //// DART
@@ -135,6 +227,14 @@ int main()
             auto end = std::chrono::steady_clock::now();
             std::chrono::duration<double> elapsed_seconds = end - start;
             dart_time += elapsed_seconds.count();
+
+            // if (repeat == 0) {
+            //     std::cout << std::endl;
+            //     for (size_t i = 0; i < indices.size(); i++)
+            //         std::cout << anymal->getPositions()[indices[i]] << " ";
+            //     std::cout << std::endl;
+            //     std::cout << target_pos.transpose() << std::endl;
+            // }
         }
         dart_time /= repeats;
         std::cout << "DART time: " << dart_time << "s" << std::endl;
@@ -142,6 +242,8 @@ int main()
     }
 
     std::cout << "Ratio (DART/RaiSim): " << (dart_time / raisim_time) << std::endl;
+    std::cout << "Ratio (DART/pinocchio): " << (dart_time / pinocchio_time) << std::endl;
+    std::cout << "Ratio (RaiSim/pinocchio): " << (raisim_time / pinocchio_time) << std::endl;
 
     return 0;
 }

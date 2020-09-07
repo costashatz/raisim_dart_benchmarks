@@ -7,6 +7,13 @@
 // RaiSim related
 #include <raisim/World.hpp>
 
+// pinocchio related
+#include <pinocchio/algorithm/aba.hpp>
+#include <pinocchio/algorithm/crba.hpp>
+#include <pinocchio/algorithm/joint-configuration.hpp>
+#include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/parsers/urdf.hpp>
+
 // std
 #include <chrono>
 #include <iostream>
@@ -28,6 +35,7 @@ int main()
     ///// Benchmark-related
     double raisim_time = 0.;
     double dart_time = 0.;
+    double pinocchio_time = 0.;
 
     size_t repeats = 10;
 
@@ -73,6 +81,46 @@ int main()
         raisim_time /= repeats;
         std::cout << "RaiSim time: " << raisim_time << "s" << std::endl;
         std::cout << "   real-time factor: " << (sim_time / raisim_time) << std::endl;
+    }
+
+    //// pinocchio
+    {
+        // Load the urdf model
+        pinocchio::Model model;
+        pinocchio::urdf::buildModel(model_file, model);
+
+        model.gravity.linear(Eigen::Vector3d(0., 0., -9.81));
+
+        // Main control loop
+        Eigen::VectorXd target_pos(7);
+        target_pos << 1., 2., 0., -1., -1.5, 0.6, 0.2;
+
+        for (size_t repeat = 0; repeat < repeats; repeat++) {
+            // Create data required by the algorithms
+            pinocchio::Data data(model);
+
+            Eigen::VectorXd q = target_pos;
+
+            Eigen::VectorXd v = Eigen::VectorXd::Zero(q.size());
+
+            // Main control loop
+            size_t loopN = sim_time / dt;
+            auto start = std::chrono::steady_clock::now();
+            for (size_t i = 0; i < loopN; i++) {
+                Eigen::VectorXd command = Kp * (target_pos - q) - Kd * v;
+
+                pinocchio::aba(model, data, q, v, command);
+
+                v += data.ddq * dt;
+                q += v * dt;
+            }
+            auto end = std::chrono::steady_clock::now();
+            std::chrono::duration<double> elapsed_seconds = end - start;
+            pinocchio_time += elapsed_seconds.count();
+        }
+        pinocchio_time /= repeats;
+        std::cout << "pinocchio_time time: " << pinocchio_time << "s" << std::endl;
+        std::cout << "   real-time factor: " << (sim_time / pinocchio_time) << std::endl;
     }
 
     //// DART
@@ -129,6 +177,8 @@ int main()
     }
 
     std::cout << "Ratio (DART/RaiSim): " << (dart_time / raisim_time) << std::endl;
+    std::cout << "Ratio (DART/pinocchio): " << (dart_time / pinocchio_time) << std::endl;
+    std::cout << "Ratio (RaiSim/pinocchio): " << (raisim_time / pinocchio_time) << std::endl;
 
     return 0;
 }
